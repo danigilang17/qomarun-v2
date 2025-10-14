@@ -17,9 +17,13 @@ import {
   Users,
   Calendar,
   BarChart3,
-  AlertTriangle
+  AlertTriangle,
+  Shield,
+  Activity
 } from 'lucide-react'
 import { Database } from '@/types/supabase'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
 
 type Report = Database['public']['Tables']['reports']['Row']
 
@@ -30,13 +34,25 @@ interface DashboardStats {
   completedReports: number
   anonymousReports: number
   highPriorityReports: number
+  todayReports: number
+  weekReports: number
 }
 
 interface CategoryData {
   category: string
   count: number
   percentage: number
+  color: string
 }
+
+interface MonthlyData {
+  month: string
+  count: number
+  completed: number
+  pending: number
+}
+
+const COLORS = ['#006400', '#228B22', '#32CD32', '#90EE90', '#98FB98']
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -47,11 +63,13 @@ export default function AdminDashboard() {
     inProgressReports: 0,
     completedReports: 0,
     anonymousReports: 0,
-    highPriorityReports: 0
+    highPriorityReports: 0,
+    todayReports: 0,
+    weekReports: 0
   })
   const [categoryData, setCategoryData] = useState<CategoryData[]>([])
   const [recentReports, setRecentReports] = useState<Report[]>([])
-  const [monthlyTrend, setMonthlyTrend] = useState<{ month: string; count: number }[]>([])
+  const [monthlyTrend, setMonthlyTrend] = useState<MonthlyData[]>([])
   
   const supabase = createClient()
 
@@ -64,6 +82,21 @@ export default function AdminDashboard() {
     }
     
     fetchDashboardData()
+    
+    // Set up real-time subscription
+    const subscription = supabase
+      .channel('reports_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'reports' },
+        () => {
+          fetchDashboardData()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [router])
 
   const fetchDashboardData = async () => {
@@ -81,6 +114,11 @@ export default function AdminDashboard() {
 
       if (!reports) return
 
+      // Calculate date ranges
+      const today = new Date()
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      const weekStart = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+
       // Calculate statistics
       const totalReports = reports.length
       const newReports = reports.filter(r => r.status === 'baru').length
@@ -88,6 +126,18 @@ export default function AdminDashboard() {
       const completedReports = reports.filter(r => r.status === 'selesai').length
       const anonymousReports = reports.filter(r => r.is_anonymous).length
       const highPriorityReports = reports.filter(r => r.priority === 'tinggi' || r.priority === 'darurat').length
+      
+      const todayReports = reports.filter(r => {
+        if (!r.created_at) return false
+        const reportDate = new Date(r.created_at)
+        return reportDate >= todayStart
+      }).length
+
+      const weekReports = reports.filter(r => {
+        if (!r.created_at) return false
+        const reportDate = new Date(r.created_at)
+        return reportDate >= weekStart
+      }).length
 
       setStats({
         totalReports,
@@ -95,7 +145,9 @@ export default function AdminDashboard() {
         inProgressReports,
         completedReports,
         anonymousReports,
-        highPriorityReports
+        highPriorityReports,
+        todayReports,
+        weekReports
       })
 
       // Calculate category distribution
@@ -104,10 +156,11 @@ export default function AdminDashboard() {
         categoryCount[report.violence_type] = (categoryCount[report.violence_type] || 0) + 1
       })
 
-      const categoryArray = Object.entries(categoryCount).map(([category, count]) => ({
+      const categoryArray = Object.entries(categoryCount).map(([category, count], index) => ({
         category,
         count,
-        percentage: Math.round((count / totalReports) * 100)
+        percentage: Math.round((count / totalReports) * 100),
+        color: COLORS[index % COLORS.length]
       })).sort((a, b) => b.count - a.count)
 
       setCategoryData(categoryArray)
@@ -116,20 +169,37 @@ export default function AdminDashboard() {
       setRecentReports(reports.slice(0, 5))
 
       // Calculate monthly trend (last 6 months)
-      const monthlyCount: { [key: string]: number } = {}
-      const months = ['Nov 2024', 'Oct 2024', 'Sep 2024', 'Aug 2024', 'Jul 2024', 'Jun 2024']
+      const monthlyCount: { [key: string]: { total: number, completed: number, pending: number } } = {}
+      const months = []
       
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date()
+        date.setMonth(date.getMonth() - i)
+        const monthKey = date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
+        months.push(monthKey)
+        monthlyCount[monthKey] = { total: 0, completed: 0, pending: 0 }
+      }
+
       reports.forEach(report => {
         if (report.created_at) {
           const date = new Date(report.created_at)
-          const monthYear = date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
-          monthlyCount[monthYear] = (monthlyCount[monthYear] || 0) + 1
+          const monthKey = date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
+          if (monthlyCount[monthKey]) {
+            monthlyCount[monthKey].total++
+            if (report.status === 'selesai') {
+              monthlyCount[monthKey].completed++
+            } else {
+              monthlyCount[monthKey].pending++
+            }
+          }
         }
       })
 
       const trendData = months.map(month => ({
         month,
-        count: monthlyCount[month] || 0
+        count: monthlyCount[month].total,
+        completed: monthlyCount[month].completed,
+        pending: monthlyCount[month].pending
       }))
 
       setMonthlyTrend(trendData)
@@ -194,13 +264,19 @@ export default function AdminDashboard() {
               <h1 className="text-2xl font-bold text-gray-900">Dashboard Pelaporan Qomarun</h1>
               <p className="text-gray-600 mt-1">Analisis data pelaporan kekerasan secara real-time</p>
             </div>
-            <div className="text-sm text-gray-500">
-              Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm text-green-600">
+                <Activity className="w-4 h-4" />
+                <span>Live Data</span>
+              </div>
+              <div className="text-sm text-gray-500">
+                {new Date().toLocaleDateString('id-ID', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -208,7 +284,7 @@ export default function AdminDashboard() {
         <div className="p-8">
           {/* Main Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="relative overflow-hidden border-l-4 border-l-blue-500">
+            <Card className="relative overflow-hidden border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50 to-white">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -216,7 +292,7 @@ export default function AdminDashboard() {
                     <p className="text-3xl font-bold text-gray-900">{stats.totalReports}</p>
                     <div className="flex items-center mt-2">
                       <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                      <span className="text-sm text-green-600">Semua laporan</span>
+                      <span className="text-sm text-green-600">+{stats.weekReports} minggu ini</span>
                     </div>
                   </div>
                   <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
@@ -226,7 +302,7 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden border-l-4 border-l-red-500">
+            <Card className="relative overflow-hidden border-l-4 border-l-red-500 bg-gradient-to-r from-red-50 to-white">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -244,7 +320,7 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden border-l-4 border-l-yellow-500">
+            <Card className="relative overflow-hidden border-l-4 border-l-yellow-500 bg-gradient-to-r from-yellow-50 to-white">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -262,7 +338,7 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden border-l-4 border-l-green-500">
+            <Card className="relative overflow-hidden border-l-4 border-l-green-500 bg-gradient-to-r from-green-50 to-white">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -270,7 +346,9 @@ export default function AdminDashboard() {
                     <p className="text-3xl font-bold text-gray-900">{stats.completedReports}</p>
                     <div className="flex items-center mt-2">
                       <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
-                      <span className="text-sm text-green-600">Terselesaikan</span>
+                      <span className="text-sm text-green-600">
+                        {Math.round((stats.completedReports / stats.totalReports) * 100)}% selesai
+                      </span>
                     </div>
                   </div>
                   <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
@@ -282,7 +360,20 @@ export default function AdminDashboard() {
           </div>
 
           {/* Secondary Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">Hari Ini</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.todayReports}</p>
+                    <p className="text-sm text-gray-500">Laporan baru</p>
+                  </div>
+                  <Calendar className="w-8 h-8 text-blue-400" />
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -293,7 +384,7 @@ export default function AdminDashboard() {
                       {Math.round((stats.anonymousReports / stats.totalReports) * 100)}% dari total
                     </p>
                   </div>
-                  <Users className="w-8 h-8 text-gray-400" />
+                  <Shield className="w-8 h-8 text-gray-400" />
                 </div>
               </CardContent>
             </Card>
@@ -304,9 +395,7 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">Prioritas Tinggi</p>
                     <p className="text-2xl font-bold text-gray-900">{stats.highPriorityReports}</p>
-                    <p className="text-sm text-gray-500">
-                      Darurat & Tinggi
-                    </p>
+                    <p className="text-sm text-gray-500">Darurat & Tinggi</p>
                   </div>
                   <AlertTriangle className="w-8 h-8 text-orange-400" />
                 </div>
@@ -321,11 +410,9 @@ export default function AdminDashboard() {
                     <p className="text-2xl font-bold text-gray-900">
                       {Math.round(stats.totalReports / 30)}
                     </p>
-                    <p className="text-sm text-gray-500">
-                      Laporan per hari
-                    </p>
+                    <p className="text-sm text-gray-500">Laporan per hari</p>
                   </div>
-                  <Calendar className="w-8 h-8 text-blue-400" />
+                  <BarChart3 className="w-8 h-8 text-green-400" />
                 </div>
               </CardContent>
             </Card>
@@ -344,22 +431,34 @@ export default function AdminDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {categoryData.map((item, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium text-gray-700">{item.category}</span>
-                        <span className="text-gray-600">{item.count} laporan ({item.percentage}%)</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className="bg-green-600 h-3 rounded-full transition-all duration-500"
-                          style={{ width: `${item.percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <ChartContainer
+                  config={{
+                    count: {
+                      label: "Jumlah Laporan",
+                    },
+                  }}
+                  className="h-[300px]"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ category, percentage }) => `${category} (${percentage}%)`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="count"
+                      >
+                        {categoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
               </CardContent>
             </Card>
 
@@ -374,7 +473,7 @@ export default function AdminDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {recentReports.map((report, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
                           <span className="font-medium text-gray-900">{report.ticket_number}</span>
@@ -413,33 +512,40 @@ export default function AdminDashboard() {
             </Card>
           </div>
 
-          {/* Monthly Trend */}
+          {/* Monthly Trend Chart */}
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Tren Laporan Bulanan</CardTitle>
               <CardDescription>
-                Jumlah laporan dalam 6 bulan terakhir
+                Jumlah laporan dan status penyelesaian dalam 6 bulan terakhir
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-6 gap-4">
-                {monthlyTrend.map((item, index) => (
-                  <div key={index} className="text-center">
-                    <div className="bg-gray-200 rounded-lg h-32 flex items-end justify-center p-2 mb-2">
-                      <div 
-                        className="bg-green-600 rounded-t w-full flex items-end justify-center text-white text-sm font-medium"
-                        style={{ 
-                          height: `${Math.max((item.count / Math.max(...monthlyTrend.map(m => m.count))) * 100, 10)}%`,
-                          minHeight: '20px'
-                        }}
-                      >
-                        {item.count}
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-600">{item.month}</p>
-                  </div>
-                ))}
-              </div>
+              <ChartContainer
+                config={{
+                  count: {
+                    label: "Total Laporan",
+                  },
+                  completed: {
+                    label: "Selesai",
+                  },
+                  pending: {
+                    label: "Pending",
+                  },
+                }}
+                className="h-[400px]"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyTrend}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="completed" stackId="a" fill="#006400" name="Selesai" />
+                    <Bar dataKey="pending" stackId="a" fill="#FFA500" name="Pending" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
             </CardContent>
           </Card>
 

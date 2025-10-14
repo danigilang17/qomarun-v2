@@ -1,3 +1,4 @@
+// src/app/report/confirmation/page.tsx
 'use client'
 
 import { useSearchParams } from 'next/navigation'
@@ -7,9 +8,9 @@ import Footer from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle, Copy, Home, Search, Shield } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 
-export default function ConfirmationPage() {
+function Confirmation() {
   const searchParams = useSearchParams()
   const ticketNumber = searchParams.get('ticket') || 'QMR-12345678'
   const [copied, setCopied] = useState(false)
@@ -153,5 +154,13 @@ export default function ConfirmationPage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function ConfirmationPage() {
+  return (
+    <Suspense>
+      <Confirmation />
+    </Suspense>
   )
 }

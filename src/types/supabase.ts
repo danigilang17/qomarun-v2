@@ -14,6 +14,96 @@ export type Database = {
   }
   public: {
     Tables: {
+      reports: {
+        Row: {
+          id: string
+          ticket_number: string
+          violence_type: string
+          incident_date: string | null
+          incident_time: string | null
+          location: string | null
+          description: string
+          victim_name: string | null
+          victim_age: number | null
+          victim_gender: string | null
+          victim_phone: string | null
+          victim_email: string | null
+          perpetrator_name: string | null
+          perpetrator_relationship: string | null
+          witness_name: string | null
+          witness_contact: string | null
+          is_anonymous: boolean | null
+          reporter_name: string | null
+          reporter_phone: string | null
+          reporter_email: string | null
+          reporter_relationship: string | null
+          status: string | null
+          priority: string | null
+          assigned_to: string | null
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          ticket_number: string
+          violence_type: string
+          incident_date?: string | null
+          incident_time?: string | null
+          location?: string | null
+          description: string
+          victim_name?: string | null
+          victim_age?: number | null
+          victim_gender?: string | null
+          victim_phone?: string | null
+          victim_email?: string | null
+          perpetrator_name?: string | null
+          perpetrator_relationship?: string | null
+          witness_name?: string | null
+          witness_contact?: string | null
+          is_anonymous?: boolean | null
+          reporter_name?: string | null
+          reporter_phone?: string | null
+          reporter_email?: string | null
+          reporter_relationship?: string | null
+          status?: string | null
+          priority?: string | null
+          assigned_to?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          ticket_number?: string
+          violence_type?: string
+          incident_date?: string | null
+          incident_time?: string | null
+          location?: string | null
+          description?: string
+          victim_name?: string | null
+          victim_age?: number | null
+          victim_gender?: string | null
+          victim_phone?: string | null
+          victim_email?: string | null
+          perpetrator_name?: string | null
+          perpetrator_relationship?: string | null
+          witness_name?: string | null
+          witness_contact?: string | null
+          is_anonymous?: boolean | null
+          reporter_name?: string | null
+          reporter_phone?: string | null
+          reporter_email?: string | null
+          reporter_relationship?: string | null
+          status?: string | null
+          priority?: string | null
+          assigned_to?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           avatar_url: string | null

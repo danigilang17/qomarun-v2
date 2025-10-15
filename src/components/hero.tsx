@@ -30,7 +30,7 @@ export default function Hero() {
                 height={32}
                 className="mr-2"
               />
-              Platform Pelaporan Terpercaya & Rahasia
+              قلِ الحقَّ ولَو كانَ مُرًّا
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-bold text-gray-900 mb-8 tracking-tight">

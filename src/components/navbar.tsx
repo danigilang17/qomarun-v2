@@ -19,7 +19,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}
           <Link href="/" className="flex items-center space-x-3">
-            <div className="w-8 h-8 qomarun-bg-green rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
                <Image src="/images/logo-qomarun.png" alt="Qomarun Logo" width={32} height={32} />
             </div>
             <span className="text-xl font-bold qomarun-green">Qomarun</span>

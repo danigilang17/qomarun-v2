@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Shield } from 'lucide-react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -51,7 +52,9 @@ export default function AdminLoginPage() {
         {/* Logo and Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 qomarun-bg-green rounded-2xl mb-4">
-            <Shield className="w-8 h-8 text-white" />
+            {/* Replace Shield icon */}
+            {/* <Shield className="h-8 w-8" /> */}
+            <Image src="/images/logo-qomarun.png" alt="Qomarun Logo" width={32} height={32} />
           </div>
           <h1 className="text-3xl font-bold qomarun-green mb-2">QOMARUN</h1>
           <p className="text-gray-600">Admin Portal</p>

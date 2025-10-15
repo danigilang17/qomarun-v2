@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Shield, BarChart3, FileText, Settings, LogOut, Users } from 'lucide-react'
+import { BarChart3, FileText, Settings, LogOut, Users } from 'lucide-react'
 import { Button } from './ui/button'
+import Image from 'next/image'
 
 export default function AdminSidebar() {
   const pathname = usePathname()
@@ -40,9 +41,9 @@ export default function AdminSidebar() {
       {/* Logo */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 qomarun-bg-green rounded-lg flex items-center justify-center">
-            <Shield className="w-6 h-6 text-white" />
-          </div>
+          {/* Replace Shield icon */}
+          {/* <Shield className="h-8 w-8" /> */}
+          <Image src="/images/logo-qomarun.png" alt="Qomarun Logo" width={32} height={32} />
           <div>
             <h1 className="text-xl font-bold qomarun-green">QOMARUN</h1>
             <p className="text-xs text-gray-500">Admin Portal</p>

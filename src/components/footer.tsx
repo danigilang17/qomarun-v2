@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Shield, Phone, Mail, MapPin } from 'lucide-react';
+import Image from 'next/image';
+import { Phone, Mail, MapPin } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -12,7 +13,9 @@ export default function Footer() {
           <div className="md:col-span-2">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <Shield className="w-5 h-5 text-green-700" />
+                {/* Replace Shield icon */}
+                {/* <Shield className="h-8 w-8" /> */}
+                <Image src="/images/logo-qomarun.png" alt="Qomarun Logo" width={32} height={32} />
               </div>
               <span className="text-xl font-bold">Qomarun</span>
             </div>

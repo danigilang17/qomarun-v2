@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { FileText, Search, Shield, Lock } from "lucide-react";
+import { FileText, Search, Lock, Shield } from "lucide-react";
+import Image from "next/image";
 import { Button } from "./ui/button";
 
 export default function Hero() {
@@ -20,7 +21,15 @@ export default function Hero() {
           <div className="text-center max-w-4xl mx-auto">
             {/* Trust Badge */}
             <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium mb-8">
-              <Shield className="w-4 h-4 mr-2" />
+              {/* Replace Shield icon */}
+              {/* <Shield className="h-8 w-8" /> */}
+              <Image
+                src="/images/logo-qomarun.png"
+                alt="Qomarun Logo"
+                width={32}
+                height={32}
+                className="mr-2"
+              />
               Platform Pelaporan Terpercaya & Rahasia
             </div>
 
@@ -79,6 +88,7 @@ export default function Hero() {
               <div className="text-center p-6 bg-white/70 rounded-xl backdrop-blur-sm border border-green-100">
                 <div className="w-12 h-12 qomarun-bg-green rounded-lg flex items-center justify-center mx-auto mb-4">
                   <Shield className="w-6 h-6 text-white" />
+                  
                 </div>
                 <h3 className="text-lg font-semibold mb-2 text-gray-900">
                   Aman & Terpercaya

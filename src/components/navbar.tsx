@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import { Menu, X, Shield } from 'lucide-react'
@@ -19,7 +20,7 @@ export default function Navbar() {
           {/* Logo and Brand */}
           <Link href="/" className="flex items-center space-x-3">
             <div className="w-8 h-8 qomarun-bg-green rounded-lg flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
+               <Image src="/images/logo-qomarun.png" alt="Qomarun Logo" width={32} height={32} />
             </div>
             <span className="text-xl font-bold qomarun-green">Qomarun</span>
           </Link>

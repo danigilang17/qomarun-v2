@@ -1,95 +1,142 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Navbar from '@/components/navbar'
-import Footer from '@/components/footer'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  Shield, 
-  Lock, 
-  Users, 
-  FileText, 
-  User, 
-  Calendar, 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Shield,
+  Lock,
+  Users,
+  FileText,
+  User,
+  Calendar,
   MapPin,
   AlertTriangle,
-  Phone
-} from 'lucide-react'
+  Phone,
+} from "lucide-react";
+import { createClient } from "@/utils/supabase/client"; // added import
 
 export default function ReportPage() {
-  const router = useRouter()
-  const [isAnonymous, setIsAnonymous] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [consentChecked, setConsentChecked] = useState(false)
+  const router = useRouter();
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [formData, setFormData] = useState({
     // Category
-    category: '',
-    
+    category: "",
+
     // Reporter Info
-    reporterName: '',
-    reporterStatus: '',
-    reporterContact: '',
-    
+    reporterName: "",
+    reporterStatus: "",
+    reporterContact: "",
+
     // Case Details
-    incidentDate: '',
-    incidentTime: '',
-    location: '',
-    description: '',
-    impact: '',
-    
+    incidentDate: "",
+    incidentTime: "",
+    location: "",
+    description: "",
+    impact: "",
+
     // Victim Info
-    victimName: '',
-    victimAge: '',
-    victimGender: '',
-    
+    victimName: "",
+    victimAge: "",
+    victimGender: "",
+
     // Perpetrator Info
-    perpetratorName: '',
-    perpetratorRole: ''
-  })
+    perpetratorName: "",
+    perpetratorRole: "",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (!consentChecked) {
-      alert('Anda harus menyetujui pemrosesan data untuk melanjutkan.')
-      return
+      alert("Anda harus menyetujui pemrosesan data untuk melanjutkan.");
+      return;
     }
-    
-    setIsSubmitting(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
+
+    setIsSubmitting(true);
+
     // Generate ticket number
-    const ticketNumber = 'QMR-' + Date.now().toString().slice(-8)
-    
-    // Redirect to confirmation page with ticket number
-    router.push(`/report/confirmation?ticket=${ticketNumber}`)
-  }
+    const ticketNumber = "QMR-" + Date.now().toString().slice(-8);
+
+    // Create supabase client (browser)
+    const supabase = createClient();
+
+    // Prepare payload for `reports` table (match fields in src/types/supabase.ts)
+    const payload = {
+      ticket_number: ticketNumber,
+      violence_type: formData.category,
+      incident_date: formData.incidentDate || null,
+      incident_time: formData.incidentTime || null,
+      location: formData.location,
+      description: formData.description,
+      impact: formData.impact || null,
+      victim_name: formData.victimName || null,
+      victim_age: formData.victimAge ? Number(formData.victimAge) : null,
+      victim_gender: formData.victimGender || null,
+      perpetrator_name: formData.perpetratorName || null,
+      perpetrator_relationship: formData.perpetratorRole || null,
+      is_anonymous: isAnonymous,
+      reporter_name: isAnonymous ? null : formData.reporterName || null,
+      reporter_phone: isAnonymous ? null : formData.reporterContact || null,
+      reporter_relationship: isAnonymous
+        ? null
+        : formData.reporterStatus || null,
+      status: "baru",
+      created_at: new Date().toISOString(),
+    };
+
+    // Insert into Supabase
+    const { data, error } = await supabase.from("reports").insert([payload]);
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      alert("Gagal mengirim laporan. Silakan coba lagi.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    // On success, redirect to confirmation with ticket
+    router.push(`/report/confirmation?ticket=${ticketNumber}`);
+  };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
-  const handleAnonymousChange = (checked: boolean | 'indeterminate') => {
-    setIsAnonymous(checked === true)
-  }
+  const handleAnonymousChange = (checked: boolean | "indeterminate") => {
+    setIsAnonymous(checked === true);
+  };
 
-  const handleConsentChange = (checked: boolean | 'indeterminate') => {
-    setConsentChecked(checked === true)
-  }
+  const handleConsentChange = (checked: boolean | "indeterminate") => {
+    setConsentChecked(checked === true);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -98,10 +145,12 @@ export default function ReportPage() {
               <AlertTriangle className="w-4 h-4 mr-2" />
               Formulir Pelaporan Kekerasan
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Buat Laporan Baru</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              Buat Laporan Baru
+            </h1>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Silakan isi formulir di bawah ini dengan lengkap dan jujur. 
-              Semua informasi akan dijaga kerahasiaannya.
+              Silakan isi formulir di bawah ini dengan lengkap dan jujur. Semua
+              informasi akan dijaga kerahasiaannya.
             </p>
           </div>
 
@@ -112,23 +161,29 @@ export default function ReportPage() {
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <h3 className="font-semibold text-gray-900 mb-1">Rahasia</h3>
-              <p className="text-sm text-gray-600">Data Anda dilindungi dengan enkripsi tingkat tinggi</p>
+              <p className="text-sm text-gray-600">
+                Data Anda dilindungi dengan enkripsi tingkat tinggi
+              </p>
             </div>
-            
+
             <div className="text-center p-6 bg-white rounded-xl border border-green-100">
               <div className="w-12 h-12 qomarun-bg-green rounded-lg flex items-center justify-center mx-auto mb-3">
                 <Lock className="w-6 h-6 text-white" />
               </div>
               <h3 className="font-semibold text-gray-900 mb-1">Terlindungi</h3>
-              <p className="text-sm text-gray-600">Hanya pihak berwenang yang dapat mengakses</p>
+              <p className="text-sm text-gray-600">
+                Hanya pihak berwenang yang dapat mengakses
+              </p>
             </div>
-            
+
             <div className="text-center p-6 bg-white rounded-xl border border-green-100">
               <div className="w-12 h-12 qomarun-bg-green rounded-lg flex items-center justify-center mx-auto mb-3">
                 <Users className="w-6 h-6 text-white" />
               </div>
               <h3 className="font-semibold text-gray-900 mb-1">Profesional</h3>
-              <p className="text-sm text-gray-600">Ditangani oleh tim yang berpengalaman</p>
+              <p className="text-sm text-gray-600">
+                Ditangani oleh tim yang berpengalaman
+              </p>
             </div>
           </div>
 
@@ -145,17 +200,33 @@ export default function ReportPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)} required>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value: string | undefined) =>
+                    value !== undefined && handleInputChange("category", value)
+                  }
+                  required
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih Kategori" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="kekerasan-fisik">Kekerasan Fisik</SelectItem>
-                    <SelectItem value="kekerasan-verbal">Kekerasan Verbal/Psikologis</SelectItem>
-                    <SelectItem value="kekerasan-seksual">Kekerasan Seksual</SelectItem>
-                    <SelectItem value="bullying">Bullying/Perundungan</SelectItem>
+                    <SelectItem value="kekerasan-fisik">
+                      Kekerasan Fisik
+                    </SelectItem>
+                    <SelectItem value="kekerasan-verbal">
+                      Kekerasan Verbal/Psikologis
+                    </SelectItem>
+                    <SelectItem value="kekerasan-seksual">
+                      Kekerasan Seksual
+                    </SelectItem>
+                    <SelectItem value="bullying">
+                      Bullying/Perundungan
+                    </SelectItem>
                     <SelectItem value="diskriminasi">Diskriminasi</SelectItem>
-                    <SelectItem value="penyalahgunaan-kekuasaan">Penyalahgunaan Kekuasaan</SelectItem>
+                    <SelectItem value="penyalahgunaan-kekuasaan">
+                      Penyalahgunaan Kekuasaan
+                    </SelectItem>
                     <SelectItem value="penelantaran">Penelantaran</SelectItem>
                     <SelectItem value="lainnya">Lainnya</SelectItem>
                   </SelectContent>
@@ -181,13 +252,20 @@ export default function ReportPage() {
                     id="reporterName"
                     placeholder="Boleh dikosongkan (anonim)"
                     value={formData.reporterName}
-                    onChange={(e) => handleInputChange('reporterName', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("reporterName", e.target.value)
+                    }
                   />
                 </div>
 
                 <div>
                   <Label htmlFor="reporterStatus">Status Pelapor</Label>
-                  <Select value={formData.reporterStatus} onValueChange={(value) => handleInputChange('reporterStatus', value)}>
+                  <Select
+                    value={formData.reporterStatus}
+                    onValueChange={(value: string) =>
+                      handleInputChange("reporterStatus", value)
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih status Anda" />
                     </SelectTrigger>
@@ -208,13 +286,15 @@ export default function ReportPage() {
                     id="reporterContact"
                     placeholder="Nomor HP/WhatsApp aktif"
                     value={formData.reporterContact}
-                    onChange={(e) => handleInputChange('reporterContact', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("reporterContact", e.target.value)
+                    }
                   />
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="anonymous" 
+                  <Checkbox
+                    id="anonymous"
                     checked={isAnonymous}
                     onCheckedChange={handleAnonymousChange}
                   />
@@ -239,12 +319,16 @@ export default function ReportPage() {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="incidentDate">Waktu Kejadian - Tanggal *</Label>
+                    <Label htmlFor="incidentDate">
+                      Waktu Kejadian - Tanggal *
+                    </Label>
                     <Input
                       id="incidentDate"
                       type="date"
                       value={formData.incidentDate}
-                      onChange={(e) => handleInputChange('incidentDate', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("incidentDate", e.target.value)
+                      }
                       required
                     />
                   </div>
@@ -254,7 +338,9 @@ export default function ReportPage() {
                       id="incidentTime"
                       type="time"
                       value={formData.incidentTime}
-                      onChange={(e) => handleInputChange('incidentTime', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("incidentTime", e.target.value)
+                      }
                     />
                   </div>
                 </div>
@@ -265,19 +351,25 @@ export default function ReportPage() {
                     id="location"
                     placeholder="Contoh: Asrama Putri, Kelas, dll."
                     value={formData.location}
-                    onChange={(e) => handleInputChange('location', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("location", e.target.value)
+                    }
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="description">Kronologi/Deskripsi Kejadian *</Label>
+                  <Label htmlFor="description">
+                    Kronologi/Deskripsi Kejadian *
+                  </Label>
                   <Textarea
                     id="description"
                     placeholder="Tuliskan kronologi kejadian secara jelas dan berurutan"
                     rows={6}
                     value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("description", e.target.value)
+                    }
                     required
                   />
                 </div>
@@ -289,7 +381,9 @@ export default function ReportPage() {
                     placeholder="Contoh: trauma, luka fisik, ketakutan, nilai menurun, dll."
                     rows={4}
                     value={formData.impact}
-                    onChange={(e) => handleInputChange('impact', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("impact", e.target.value)
+                    }
                   />
                 </div>
               </CardContent>
@@ -312,7 +406,9 @@ export default function ReportPage() {
                       id="victimName"
                       placeholder="Nama lengkap korban"
                       value={formData.victimName}
-                      onChange={(e) => handleInputChange('victimName', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("victimName", e.target.value)
+                      }
                       required
                     />
                   </div>
@@ -324,13 +420,20 @@ export default function ReportPage() {
                       type="number"
                       placeholder="Usia korban"
                       value={formData.victimAge}
-                      onChange={(e) => handleInputChange('victimAge', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("victimAge", e.target.value)
+                      }
                     />
                   </div>
 
                   <div>
                     <Label htmlFor="victimGender">Jenis Kelamin</Label>
-                    <Select value={formData.victimGender} onValueChange={(value) => handleInputChange('victimGender', value)}>
+                    <Select
+                      value={formData.victimGender}
+                      onValueChange={(value: string) =>
+                        handleInputChange("victimGender", value)
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Pilih jenis kelamin" />
                       </SelectTrigger>
@@ -353,12 +456,16 @@ export default function ReportPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="perpetratorName">Nama Pelaku (bila diketahui)</Label>
+                    <Label htmlFor="perpetratorName">
+                      Nama Pelaku (bila diketahui)
+                    </Label>
                     <Input
                       id="perpetratorName"
                       placeholder="Nama pelaku jika diketahui"
                       value={formData.perpetratorName}
-                      onChange={(e) => handleInputChange('perpetratorName', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("perpetratorName", e.target.value)
+                      }
                     />
                   </div>
 
@@ -368,7 +475,9 @@ export default function ReportPage() {
                       id="perpetratorRole"
                       placeholder="Contoh: teman sekelas, senior, dll."
                       value={formData.perpetratorRole}
-                      onChange={(e) => handleInputChange('perpetratorRole', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("perpetratorRole", e.target.value)
+                      }
                     />
                   </div>
                 </CardContent>
@@ -379,15 +488,17 @@ export default function ReportPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-start space-x-3">
-                  <Checkbox 
-                    id="consent" 
+                  <Checkbox
+                    id="consent"
                     checked={consentChecked}
                     onCheckedChange={handleConsentChange}
                     required
                   />
                   <Label htmlFor="consent" className="text-sm leading-relaxed">
-                    Saya menyatakan bahwa informasi yang saya sampaikan adalah benar sesuai pengetahuan saya, 
-                    dan saya menyetujui pemrosesan data ini oleh Tim Satgas Pesantren untuk keperluan penanganan kasus.
+                    Saya menyatakan bahwa informasi yang saya sampaikan adalah
+                    benar sesuai pengetahuan saya, dan saya menyetujui
+                    pemrosesan data ini oleh Tim Satgas Pesantren untuk
+                    keperluan penanganan kasus.
                   </Label>
                 </div>
               </CardContent>
@@ -395,17 +506,18 @@ export default function ReportPage() {
 
             {/* Submit Button */}
             <div className="text-center space-y-4">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 size="lg"
                 disabled={isSubmitting || !consentChecked}
                 className="qomarun-bg-green hover:bg-green-700 text-white px-12 py-4 text-lg font-medium"
               >
-                {isSubmitting ? 'Mengirim Laporan...' : 'Kirim Laporan'}
+                {isSubmitting ? "Mengirim Laporan..." : "Kirim Laporan"}
               </Button>
-              
+
               <p className="text-sm text-gray-600">
-                Dengan mengirim laporan, Anda memahami kebijakan privasi dan kerahasiaan Qomarun.
+                Dengan mengirim laporan, Anda memahami kebijakan privasi dan
+                kerahasiaan Qomarun.
               </p>
             </div>
           </form>
@@ -415,9 +527,13 @@ export default function ReportPage() {
             <div className="flex items-start">
               <Shield className="w-6 h-6 qomarun-green mt-1 mr-3 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Jaminan Keamanan & Privasi</h3>
+                <h3 className="font-semibold text-gray-900 mb-2">
+                  Jaminan Keamanan & Privasi
+                </h3>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• Semua data dienkripsi dengan standar keamanan tinggi</li>
+                  <li>
+                    • Semua data dienkripsi dengan standar keamanan tinggi
+                  </li>
                   <li>• Hanya pihak berwenang yang dapat mengakses laporan</li>
                   <li>• Identitas pelapor dijaga kerahasiaannya</li>
                   <li>• Laporan akan ditindaklanjuti dalam 24 jam</li>
@@ -430,5 +546,5 @@ export default function ReportPage() {
 
       <Footer />
     </div>
-  )
+  );
 }

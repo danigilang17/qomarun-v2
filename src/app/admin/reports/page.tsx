@@ -461,9 +461,7 @@ export default function AdminReportsPage() {
                             variant="outline"
                             className="qomarun-border-green qomarun-green hover:bg-green-50"
                             onClick={() =>
-                              router.push(
-                                `/admin/reports/${report.ticket_number}`
-                              )
+                              router.push(`/admin/reports/${report.id}`)
                             }
                           >
                             <Eye className="w-4 h-4 mr-2" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,67 @@ import {
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
+// Supabase client (menggunakan env vars yang diawali NEXT_PUBLIC_)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// helper untuk mapping row DB ke bentuk yang dipakai UI
+const mapDbRowToReport = (data: any) => {
+  return {
+    ticketNumber: data.ticket_number,
+    status: data.status,
+    priority: data.priority,
+    assignedTo: data.assigned_to,
+    submittedDate: data.created_at
+      ? new Date(data.created_at).toLocaleDateString("id-ID")
+      : null,
+    lastUpdate: data.updated_at
+      ? new Date(data.updated_at).toLocaleString("id-ID")
+      : null,
+    violenceType: data.violence_type,
+    incidentDate: data.incident_date,
+    incidentTime: data.incident_time,
+    location: data.location,
+    description: data.description,
+    victim: {
+      name: data.victim_name,
+      age: data.victim_age,
+      gender: data.victim_gender,
+      phone: data.victim_phone,
+      email: data.victim_email,
+    },
+    perpetrator: {
+      name: data.perpetrator_name,
+      relationship: data.perpetrator_relationship,
+    },
+    witness: {
+      name: data.witness_name,
+      contact: data.witness_contact,
+    },
+    isAnonymous: data.is_anonymous,
+    reporter: {
+      name: data.reporter_name,
+      phone: data.reporter_phone,
+      email: data.reporter_email,
+      relationship: data.reporter_relationship,
+    },
+    notes: Array.isArray(data.notes)
+      ? data.notes
+      : data.notes
+        ? [
+            {
+              description: data.notes,
+              date: data.updated_at
+                ? new Date(data.updated_at).toLocaleString("id-ID")
+                : null,
+            },
+          ]
+        : [],
+    impact: data.impact,
+  };
+};
+
 export default function StatusPage() {
   const [ticketNumber, setTicketNumber] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -42,13 +103,8 @@ export default function StatusPage() {
     setIsSearching(true);
     setError("");
 
-    // Supabase client (menggunakan env vars yang diawali NEXT_PUBLIC_)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     try {
-      // Sesuaikan nama tabel dan kolom sesuai skema Anda
+      // gunakan client global supabase
       const { data, error: sbError } = await supabase
         .from("reports")
         .select(
@@ -65,63 +121,10 @@ export default function StatusPage() {
         return;
       }
 
-      // Mapping field dari DB ke state yang dipakai komponen
-      const mapped = {
-        ticketNumber: data.ticket_number,
-        status: data.status,
-        priority: data.priority,
-        assignedTo: data.assigned_to,
-        submittedDate: data.created_at
-          ? new Date(data.created_at).toLocaleDateString("id-ID")
-          : null,
-        lastUpdate: data.updated_at
-          ? new Date(data.updated_at).toLocaleString("id-ID")
-          : null,
-        violenceType: data.violence_type,
-        incidentDate: data.incident_date,
-        incidentTime: data.incident_time,
-        location: data.location,
-        description: data.description,
-        victim: {
-          name: data.victim_name,
-          age: data.victim_age,
-          gender: data.victim_gender,
-          phone: data.victim_phone,
-          email: data.victim_email,
-        },
-        perpetrator: {
-          name: data.perpetrator_name,
-          relationship: data.perpetrator_relationship,
-        },
-        witness: {
-          name: data.witness_name,
-          contact: data.witness_contact,
-        },
-        isAnonymous: data.is_anonymous,
-        reporter: {
-          name: data.reporter_name,
-          phone: data.reporter_phone,
-          email: data.reporter_email,
-          relationship: data.reporter_relationship,
-        },
-        notes: Array.isArray(data.notes)
-          ? data.notes
-          : data.notes
-            ? [
-                {
-                  description: data.notes,
-                  date: data.updated_at
-                    ? new Date(data.updated_at).toLocaleString("id-ID")
-                    : null,
-                },
-              ]
-            : [],
-        impact: data.impact,
-      };
-
+      const mapped = mapDbRowToReport(data);
       setReportData(mapped);
 
-      // debug: lihat nilai status & data mentah di console
+      // debug
       console.log("Supabase report raw:", data);
       console.log("Mapped reportData.status:", mapped.status);
     } catch (err: any) {
@@ -133,12 +136,49 @@ export default function StatusPage() {
     }
   };
 
+  // subscribe ke perubahan baris untuk ticket yang sedang dilihat
+  useEffect(() => {
+    if (!reportData?.ticketNumber) return;
+
+    const ticket = reportData.ticketNumber;
+
+    const channel = supabase
+      .channel(`reports-ticket-${ticket}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "reports",
+          filter: `ticket_number=eq.${ticket}`,
+        },
+        (payload) => {
+          console.log("Realtime payload:", payload);
+          // payload.new berisi row setelah change (insert/update)
+          if (payload.new) {
+            const mapped = mapDbRowToReport(payload.new);
+            setReportData((prev: any) => ({ ...prev, ...mapped }));
+          } else if (payload.eventType === "DELETE") {
+            setReportData(null);
+            setError("Laporan telah dihapus.");
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log("Supabase realtime subscribe status:", status);
+      });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [reportData?.ticketNumber]);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "baru":
         return (
           <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-            Diterima
+            Baru
           </Badge>
         );
       case "diproses":
@@ -162,7 +202,7 @@ export default function StatusPage() {
       case "selesai":
         return (
           <Badge variant="secondary" className="bg-gray-100 text-gray-800">
-            Ditutup
+            Selesai
           </Badge>
         );
       default:

@@ -516,9 +516,6 @@ export default function AdminReportDetail() {
                         <SelectItem value="diproses">
                           Sedang Diproses
                         </SelectItem>
-                        <SelectItem value="menunggu">
-                          Menunggu Tindak Lanjut
-                        </SelectItem>
                         <SelectItem value="selesai">Selesai</SelectItem>
                       </SelectContent>
                     </Select>
